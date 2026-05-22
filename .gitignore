@@ -1,0 +1,13 @@
+# Phorge / libphutil
+src/.phutil_module_cache
+src/**/.phutil_module_cache
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Local config
+local.json
