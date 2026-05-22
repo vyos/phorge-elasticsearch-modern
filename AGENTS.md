@@ -19,7 +19,7 @@ Spec + plan: [Confluence page 891322369](https://vyos.atlassian.net/wiki/spaces/
 
 ## Repository layout
 
-```
+```text
 src/
   host/
     VyOSElasticModernHost.php          # PhabricatorClusterSearchHost subclass (final)
