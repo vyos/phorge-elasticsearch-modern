@@ -1,10 +1,19 @@
 <?php
 
+final class VyOSElasticModernHostTestEngine
+  extends VyOSElasticModernFulltextStorageEngine {
+}
+
 final class VyOSElasticModernHostTestCase
   extends PhutilTestCase {
 
+  public function testPlaceholderEngineIsAbstract() {
+    $class = new ReflectionClass('VyOSElasticModernFulltextStorageEngine');
+    $this->assertTrue($class->isAbstract());
+  }
+
   public function testDisplayName() {
-    $engine = new VyOSElasticModernFulltextStorageEngine();
+    $engine = new VyOSElasticModernHostTestEngine();
     $host = new VyOSElasticModernHost($engine);
     $this->assertEqual(
       'Elasticsearch (modern)',
@@ -12,7 +21,7 @@ final class VyOSElasticModernHostTestCase
   }
 
   public function testConfigDefaults() {
-    $engine = new VyOSElasticModernFulltextStorageEngine();
+    $engine = new VyOSElasticModernHostTestEngine();
     $host = new VyOSElasticModernHost($engine);
     $host->setConfig(array());
     $this->assertEqual('http', $host->getProtocol());
@@ -21,7 +30,7 @@ final class VyOSElasticModernHostTestCase
   }
 
   public function testConfigOverrides() {
-    $engine = new VyOSElasticModernFulltextStorageEngine();
+    $engine = new VyOSElasticModernHostTestEngine();
     $host = new VyOSElasticModernHost($engine);
     $host->setConfig(array(
       'host'     => 'es.example.com',
@@ -38,7 +47,7 @@ final class VyOSElasticModernHostTestCase
   }
 
   public function testGetURI() {
-    $engine = new VyOSElasticModernFulltextStorageEngine();
+    $engine = new VyOSElasticModernHostTestEngine();
     $host = new VyOSElasticModernHost($engine);
     $host->setConfig(array(
       'host'     => 'es.example.com',

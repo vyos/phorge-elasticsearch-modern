@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Placeholder for the engine class. Real implementation grows in Phase 3-4.
- * Tasks E1-E8 replace the throwing stubs below with working code.
+ * Placeholder for the engine class. Keep this abstract until E7/E8 land so
+ * it is not auto-discovered as a selectable backend before it can operate.
  */
-final class VyOSElasticModernFulltextStorageEngine
+abstract class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
   public function getEngineIdentifier() {
