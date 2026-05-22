@@ -4,7 +4,7 @@
  * Placeholder for the engine class. Real implementation grows in Phase 3-4.
  * Tasks E1-E8 replace the throwing stubs below with working code.
  */
-class VyOSElasticModernFulltextStorageEngine
+final class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
   public function getEngineIdentifier() {

@@ -30,6 +30,8 @@ final class VyOSElasticModernHostTestCase
       'path'     => '/myphorge',
       'version'  => 8,
     ));
+    $this->assertEqual('es.example.com', $host->getHost());
+    $this->assertEqual(9200, $host->getPort());
     $this->assertEqual('https', $host->getProtocol());
     $this->assertEqual('/myphorge', $host->getPath());
     $this->assertEqual(8, $host->getVersion());
