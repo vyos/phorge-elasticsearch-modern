@@ -296,7 +296,12 @@ abstract class VyOSElasticModernFulltextStorageEngine
         $response = $this->executeRequest($host, $uri, $spec);
         $phids = ipull($response['hits']['hits'], '_id');
         return $phids;
-      } catch (Throwable $e) {
+      } catch (Exception $e) {
+        // Catches HTTPFutureResponseStatus and other network/HTTP exceptions
+        // raised by executeRequest(). PHP Error subclasses (TypeError, etc.)
+        // are intentionally NOT caught -- they indicate programming bugs that
+        // should propagate immediately, not get aggregated into the per-host
+        // failover.
         $exceptions[] = $e;
       }
     }
@@ -309,7 +314,6 @@ abstract class VyOSElasticModernFulltextStorageEngine
     $q = new PhabricatorElasticsearchQueryBuilder();
     $query_string = $query->getParameter('query');
     if (strlen($query_string)) {
-      $fields = $this->getTypeConstants('PhabricatorSearchDocumentFieldType');
       $q->addMustClause(array(
         'simple_query_string' => array(
           'query'  => $query_string,
