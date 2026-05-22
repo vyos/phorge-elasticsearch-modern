@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Per-repo CodeRabbit override for vyos/phorge-elasticsearch-modern.
+#
+# Most behavior is inherited from the org-level central baseline at
+# https://github.com/vyos/coderabbit/blob/production/.coderabbit.yaml
+# (loaded automatically because the central repo is named `coderabbit`
+# under the same GitHub org as this repo).
+
+# REQUIRED — without this, the per-repo file REPLACES the central
+# baseline at vyos/coderabbit instead of merging per-field. See
+# the "CodeRabbit gotchas" section in ~/.claude/data/github.md.
+inheritance: true
+
+reviews:
+  auto_review:
+    # The org central baseline ships a base_branches list shaped for
+    # vyos-1x release-train repos (current, sagitta, circinus, etc.).
+    # This repo uses a production/development + task/* model; add
+    # those patterns so CodeRabbit auto-reviews fire on PRs targeting
+    # any of these branches.
+    base_branches:
+      - production
+      - development
+      - "task/.*"
+
+knowledge_base:
+  jira:
+    # `auto` is the cross-org-safe value: enabled on private/internal
+    # mirror repos where Jira OAuth is connected, disabled on the public
+    # source where it is not. Avoids `enabled` (which can produce
+    # warnings on installs without OAuth).
+    usage: auto
+    # No dedicated Jira project for this repo today; leave commented
+    # out so CodeRabbit uses the central config's defaults.
+    # project_keys:
+    #   - WD
