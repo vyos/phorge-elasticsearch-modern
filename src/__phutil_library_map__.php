@@ -10,12 +10,14 @@ phutil_register_library_map(array(
   '__library_version__' => 2,
   'class' => array(
     'VyOSElasticModernFulltextStorageEngine' => 'engine/VyOSElasticModernFulltextStorageEngine.php',
+    'VyOSElasticModernFulltextStorageEngineTestCase' => '__tests__/VyOSElasticModernFulltextStorageEngineTestCase.php',
     'VyOSElasticModernHost' => 'host/VyOSElasticModernHost.php',
     'VyOSElasticModernHostTestCase' => '__tests__/VyOSElasticModernHostTestCase.php',
   ),
   'function' => array(),
   'xmap' => array(
     'VyOSElasticModernFulltextStorageEngine' => 'PhabricatorFulltextStorageEngine',
+    'VyOSElasticModernFulltextStorageEngineTestCase' => 'PhutilTestCase',
     'VyOSElasticModernHost' => 'PhabricatorSearchHost',
     'VyOSElasticModernHostTestCase' => 'PhutilTestCase',
   ),
