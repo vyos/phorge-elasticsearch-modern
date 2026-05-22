@@ -9,6 +9,7 @@ abstract class VyOSElasticModernFulltextStorageEngine
 
   private $version = null;
   private $index;
+  private $timeout = 15;
 
   public function setService(PhabricatorSearchService $service) {
     $this->service = $service;  // inherited protected property
@@ -173,11 +174,108 @@ abstract class VyOSElasticModernFulltextStorageEngine
     return new VyOSElasticModernHost($this);
   }
 
+  public function setTimeout($timeout) {
+    $this->timeout = $timeout;
+    return $this;
+  }
+
+  public function getTimeout() {
+    return $this->timeout;
+  }
+
   public function reindexAbstractDocument(
     PhabricatorSearchAbstractDocument $doc) {
-    throw new Exception(pht(
-      'reindexAbstractDocument() is not yet implemented on '.
-      'VyOSElasticModernFulltextStorageEngine; lands in Task E7.'));
+
+    $host = $this->getHostForWrite();
+
+    $type = $doc->getDocumentType();
+    $phid = $doc->getPHID();
+
+    // The handle query mirrors the bundled engine's pattern; it
+    // populates the handle cache so subsequent field-data lookups
+    // don't issue redundant queries.
+    $handle = id(new PhabricatorHandleQuery())
+      ->setViewer(PhabricatorUser::getOmnipotentUser())
+      ->withPHIDs(array($phid))
+      ->executeOne();
+
+    $spec = array(
+      'title'         => $doc->getDocumentTitle(),
+      'dateCreated'   => $doc->getDocumentCreated(),
+      'lastModified'  => $doc->getDocumentModified(),
+      'documentType'  => $type,
+    );
+
+    foreach ($doc->getFieldData() as $field) {
+      list($field_name, $corpus, $aux) = $field;
+      if (!isset($spec[$field_name])) {
+        $spec[$field_name] = array($corpus);
+      } else {
+        $spec[$field_name][] = $corpus;
+      }
+      if ($aux !== null) {
+        $spec[$field_name][] = $aux;
+      }
+    }
+
+    foreach ($doc->getRelationshipData() as $field) {
+      list($field_name, $related_phid, $rtype, $time) = $field;
+      if (!isset($spec[$field_name])) {
+        $spec[$field_name] = array($related_phid);
+      } else {
+        $spec[$field_name][] = $related_phid;
+      }
+      if ($time) {
+        $spec[$field_name.'_ts'] = $time;
+      }
+    }
+
+    $this->executeRequest(
+      $host,
+      $this->getDocumentUri($type, $phid),
+      $spec,
+      'PUT');
+  }
+
+  private function executeRequest(
+    VyOSElasticModernHost $host, $path, array $data, $method = 'GET') {
+
+    $uri = $host->getURI($path);
+    $data = phutil_json_encode($data);
+    $future = new HTTPSFuture($uri, $data);
+    $future->addHeader('Content-Type', 'application/json');
+
+    if ($method !== 'GET') {
+      $future->setMethod($method);
+    }
+    if ($this->getTimeout()) {
+      $future->setTimeout($this->getTimeout());
+    }
+
+    try {
+      list($body) = $future->resolvex();
+    } catch (HTTPFutureResponseStatus $ex) {
+      if ($ex->isTimeout() || (int)$ex->getStatusCode() > 499) {
+        $host->didHealthCheck(false);
+      }
+      throw $ex;
+    }
+
+    if ($method !== 'GET') {
+      return null;
+    }
+
+    try {
+      $decoded = phutil_json_decode($body);
+      $host->didHealthCheck(true);
+      return $decoded;
+    } catch (PhutilJSONParserException $ex) {
+      $host->didHealthCheck(false);
+      throw new Exception(
+        pht('Elasticsearch server returned invalid JSON.'),
+        0,
+        $ex);
+    }
   }
 
   public function executeSearch(PhabricatorSavedQuery $query) {
