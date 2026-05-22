@@ -48,6 +48,53 @@ abstract class VyOSElasticModernFulltextStorageEngine
     );
   }
 
+  public function buildIndexMappings(
+    array $doc_types, array $fields, array $relationships, $text_type) {
+
+    $properties = array();
+
+    foreach ($fields as $field) {
+      $properties[$field] = array(
+        'type'   => $text_type,
+        'fields' => array(
+          'raw' => array(
+            'type'                  => $text_type,
+            'analyzer'              => 'english_exact',
+            'search_analyzer'       => 'english',
+            'search_quote_analyzer' => 'english_exact',
+          ),
+          'keywords' => array(
+            'type'     => $text_type,
+            'analyzer' => 'letter_stop',
+          ),
+          'stems' => array(
+            'type'     => $text_type,
+            'analyzer' => 'english_stem',
+          ),
+        ),
+      );
+    }
+
+    foreach ($relationships as $rel) {
+      $properties[$rel] = array(
+        'type'       => 'keyword',
+        'doc_values' => false,
+      );
+      $properties[$rel.'_ts'] = array(
+        'type' => 'date',
+      );
+    }
+
+    $properties['documentType'] = array('type' => 'keyword');
+    $properties['dateCreated']  = array('type' => 'date');
+    $properties['lastModified'] = array('type' => 'date');
+
+    // The $doc_types parameter is part of the signature for symmetry
+    // with the bundled engine's per-type loop, but the typeless API
+    // emits one mapping shared across all doc types.
+    return array('properties' => $properties);
+  }
+
   public function getEngineIdentifier() {
     return 'elasticsearch-modern';
   }

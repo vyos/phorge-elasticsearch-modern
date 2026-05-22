@@ -112,4 +112,58 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
       $filter);
   }
 
+  public function testBuildIndexMappingsShape() {
+    $engine = id(new VyOSElasticModernFulltextStorageEngine())
+      ->setVersion(7);
+
+    $doc_types = array('TASK', 'DREV');
+    $fields = array('title', 'body', 'comment');
+    $relationships = array('authorPHID', 'projectPHID');
+    $mappings = $engine->buildIndexMappings(
+      $doc_types, $fields, $relationships, 'text');
+
+    // Single typeless mapping with one 'properties' block.
+    $this->assertTrue(isset($mappings['properties']));
+    $this->assertFalse(isset($mappings['TASK']));
+    $this->assertFalse(isset($mappings['DREV']));
+
+    // Field properties exist with the multi-analyzer shape.
+    $this->assertTrue(isset($mappings['properties']['title']));
+    $this->assertEqual('text', $mappings['properties']['title']['type']);
+    $this->assertTrue(
+      isset($mappings['properties']['title']['fields']['raw']));
+    $this->assertTrue(
+      isset($mappings['properties']['title']['fields']['keywords']));
+    $this->assertTrue(
+      isset($mappings['properties']['title']['fields']['stems']));
+
+    // Relationships emit as keyword fields with doc_values:false.
+    $this->assertEqual(
+      'keyword',
+      $mappings['properties']['authorPHID']['type']);
+    $this->assertEqual(
+      false,
+      $mappings['properties']['authorPHID']['doc_values']);
+    $this->assertEqual(
+      'date',
+      $mappings['properties']['authorPHID_ts']['type']);
+
+    // No include_in_all anywhere.
+    $this->assertFalse(
+      isset($mappings['properties']['authorPHID']['include_in_all']));
+
+    // documentType is a keyword field inside properties.
+    $this->assertEqual(
+      'keyword',
+      $mappings['properties']['documentType']['type']);
+
+    // Standard date fields present.
+    $this->assertEqual(
+      'date',
+      $mappings['properties']['dateCreated']['type']);
+    $this->assertEqual(
+      'date',
+      $mappings['properties']['lastModified']['type']);
+  }
+
 }
