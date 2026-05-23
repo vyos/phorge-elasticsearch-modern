@@ -90,8 +90,7 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
   }
 
   public function testBuildTypeFilter() {
-    $engine = id(new VyOSElasticModernFulltextStorageEngine())
-      ->setVersion(7);
+    $engine = $this->newEngine()->setVersion(7);
     $filter = $engine->buildTypeFilter(array('TASK', 'DREV'));
     $expected = array(
       'terms' => array(
@@ -106,8 +105,7 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
     // for normalizing "no types specified" to "all indexable types"
     // before calling this method. This matches the bundled engine's
     // pattern (executeSearch() normalizes before URL construction).
-    $engine = id(new VyOSElasticModernFulltextStorageEngine())
-      ->setVersion(7);
+    $engine = $this->newEngine()->setVersion(7);
     $filter = $engine->buildTypeFilter(array());
     $this->assertEqual(
       array('terms' => array('documentType' => array())),
