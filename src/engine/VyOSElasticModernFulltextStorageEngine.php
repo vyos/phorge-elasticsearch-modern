@@ -48,6 +48,83 @@ abstract class VyOSElasticModernFulltextStorageEngine
     );
   }
 
+  public function buildIndexMappings(
+    array $doc_types, array $fields, array $relationships, $text_type) {
+
+    // These are emitted as fixed standard fields at the end of the mapping.
+    // Caller-supplied $fields or $relationships must not shadow them.
+    static $reserved = array('documentType', 'dateCreated', 'lastModified');
+
+    $rel_ts_keys = array_map(function($r) { return $r.'_ts'; }, $relationships);
+    $all_caller_keys = array_merge($fields, $relationships, $rel_ts_keys);
+
+    // Check for caller-supplied names that shadow reserved fields.
+    $collisions = array_intersect($all_caller_keys, $reserved);
+    if ($collisions) {
+      throw new Exception(
+        pht(
+          'buildIndexMappings(): caller-supplied field(s) "%s" collide with '.
+          'reserved mapping keys.',
+          implode('", "', array_values($collisions))));
+    }
+
+    // Check for duplicates within caller-supplied keys themselves
+    // (e.g. a field named "foo_ts" that would clash with relationship "foo"'s
+    // implicit timestamp slot).
+    $counts = array_count_values($all_caller_keys);
+    $duplicates = array_keys(array_filter($counts, function($c) { return $c > 1; }));
+    if ($duplicates) {
+      throw new Exception(
+        pht(
+          'buildIndexMappings(): caller-supplied key(s) "%s" appear more '.
+          'than once (check for field/relationship/timestamp-slot collisions).',
+          implode('", "', $duplicates)));
+    }
+
+    $properties = array();
+
+    foreach ($fields as $field) {
+      $properties[$field] = array(
+        'type'   => $text_type,
+        'fields' => array(
+          'raw' => array(
+            'type'                  => $text_type,
+            'analyzer'              => 'english_exact',
+            'search_analyzer'       => 'english',
+            'search_quote_analyzer' => 'english_exact',
+          ),
+          'keywords' => array(
+            'type'     => $text_type,
+            'analyzer' => 'letter_stop',
+          ),
+          'stems' => array(
+            'type'     => $text_type,
+            'analyzer' => 'english_stem',
+          ),
+        ),
+      );
+    }
+
+    foreach ($relationships as $rel) {
+      $properties[$rel] = array(
+        'type'       => 'keyword',
+        'doc_values' => false,
+      );
+      $properties[$rel.'_ts'] = array(
+        'type' => 'date',
+      );
+    }
+
+    $properties['documentType'] = array('type' => 'keyword');
+    $properties['dateCreated']  = array('type' => 'date');
+    $properties['lastModified'] = array('type' => 'date');
+
+    // The $doc_types parameter is part of the signature for symmetry
+    // with the bundled engine's per-type loop, but the typeless API
+    // emits one mapping shared across all doc types.
+    return array('properties' => $properties);
+  }
+
   public function getEngineIdentifier() {
     return 'elasticsearch-modern';
   }
