@@ -113,8 +113,7 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
   }
 
   public function testBuildIndexMappingsShape() {
-    $engine = id(new VyOSElasticModernFulltextStorageEngine())
-      ->setVersion(7);
+    $engine = $this->newEngine()->setVersion(7);
 
     $doc_types = array('TASK', 'DREV');
     $fields = array('title', 'body', 'comment');
@@ -127,30 +126,45 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
     $this->assertFalse(isset($mappings['TASK']));
     $this->assertFalse(isset($mappings['DREV']));
 
-    // Field properties exist with the multi-analyzer shape.
-    $this->assertTrue(isset($mappings['properties']['title']));
-    $this->assertEqual('text', $mappings['properties']['title']['type']);
-    $this->assertTrue(
-      isset($mappings['properties']['title']['fields']['raw']));
-    $this->assertTrue(
-      isset($mappings['properties']['title']['fields']['keywords']));
-    $this->assertTrue(
-      isset($mappings['properties']['title']['fields']['stems']));
+    // All three text fields have the multi-analyzer shape.
+    foreach (array('title', 'body', 'comment') as $field) {
+      $this->assertTrue(
+        isset($mappings['properties'][$field]),
+        pht('Field "%s" missing from mappings.', $field));
+      $this->assertEqual(
+        'text',
+        $mappings['properties'][$field]['type'],
+        pht('Field "%s" should be type text.', $field));
+      $this->assertTrue(
+        isset($mappings['properties'][$field]['fields']['raw']),
+        pht('Field "%s" missing raw sub-field.', $field));
+      $this->assertTrue(
+        isset($mappings['properties'][$field]['fields']['keywords']),
+        pht('Field "%s" missing keywords sub-field.', $field));
+      $this->assertTrue(
+        isset($mappings['properties'][$field]['fields']['stems']),
+        pht('Field "%s" missing stems sub-field.', $field));
+    }
 
-    // Relationships emit as keyword fields with doc_values:false.
-    $this->assertEqual(
-      'keyword',
-      $mappings['properties']['authorPHID']['type']);
-    $this->assertEqual(
-      false,
-      $mappings['properties']['authorPHID']['doc_values']);
-    $this->assertEqual(
-      'date',
-      $mappings['properties']['authorPHID_ts']['type']);
-
-    // No include_in_all anywhere.
-    $this->assertFalse(
-      isset($mappings['properties']['authorPHID']['include_in_all']));
+    // Both relationships emit as keyword fields with doc_values:false.
+    foreach (array('authorPHID', 'projectPHID') as $rel) {
+      $this->assertEqual(
+        'keyword',
+        $mappings['properties'][$rel]['type'],
+        pht('Relationship "%s" should be keyword type.', $rel));
+      $this->assertEqual(
+        false,
+        $mappings['properties'][$rel]['doc_values'],
+        pht('Relationship "%s" should have doc_values:false.', $rel));
+      $this->assertEqual(
+        'date',
+        $mappings['properties'][$rel.'_ts']['type'],
+        pht('Relationship "%s" missing timestamp field.', $rel));
+      // No include_in_all anywhere.
+      $this->assertFalse(
+        isset($mappings['properties'][$rel]['include_in_all']),
+        pht('Relationship "%s" should not have include_in_all.', $rel));
+    }
 
     // documentType is a keyword field inside properties.
     $this->assertEqual(
