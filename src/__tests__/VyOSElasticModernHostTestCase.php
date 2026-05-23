@@ -7,9 +7,12 @@ final class VyOSElasticModernHostTestEngine
 final class VyOSElasticModernHostTestCase
   extends PhutilTestCase {
 
-  public function testPlaceholderEngineIsAbstract() {
+  public function testEngineIsConcreteForDispatch() {
+    // Must NOT be abstract: PhutilClassMapQuery → PhutilSymbolLoader::loadObjects()
+    // calls setConcreteOnly(true) which unsets abstract classes. A concrete (plain)
+    // class is required for cluster.search[].type:elasticsearch-modern dispatch.
     $class = new ReflectionClass('VyOSElasticModernFulltextStorageEngine');
-    $this->assertTrue($class->isAbstract());
+    $this->assertFalse($class->isAbstract());
   }
 
   public function testDisplayName() {

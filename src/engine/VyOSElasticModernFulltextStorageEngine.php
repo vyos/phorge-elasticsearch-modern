@@ -1,10 +1,11 @@
 <?php
 
 /**
- * Placeholder for the engine class. Keep this abstract until E7/E8 land so
- * it is not auto-discovered as a selectable backend before it can operate.
+ * Full-text storage engine for Elasticsearch 7/8 and compatible OpenSearch
+ * clusters. Discoverable by PhutilClassMapQuery (plain class, not abstract)
+ * so Phorge's cluster.search dispatch can find and instantiate it.
  */
-abstract class VyOSElasticModernFulltextStorageEngine
+class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
   private $version = null;
