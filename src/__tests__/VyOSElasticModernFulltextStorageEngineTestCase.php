@@ -1,9 +1,9 @@
 <?php
 
 /**
- * Minimal concrete subclass for unit-testing the abstract engine.
- * Only the abstract stubs from PhabricatorFulltextStorageEngine are
- * satisfied here; no real Elasticsearch I/O occurs in tests.
+ * Test-double subclass of the concrete engine used by unit tests.
+ * Overrides host-dependent methods so tests run without a real
+ * PhabricatorSearchService; no actual Elasticsearch I/O occurs.
  */
 final class VyOSElasticModernFulltextStorageEngineTestDouble
   extends VyOSElasticModernFulltextStorageEngine {
