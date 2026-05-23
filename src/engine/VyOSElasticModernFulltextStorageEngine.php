@@ -281,18 +281,305 @@ abstract class VyOSElasticModernFulltextStorageEngine
   }
 
   public function executeSearch(PhabricatorSavedQuery $query) {
-    throw new Exception(pht(
-      'executeSearch() is not yet implemented; lands in Task E8.'));
+    $types = $query->getParameter('types');
+    if (!$types) {
+      $types = array_keys(
+        PhabricatorSearchApplicationSearchEngine::getIndexableDocumentTypes());
+    }
+
+    $uri = $this->getSearchUri($types);
+    $spec = $this->buildSpec($query, $types);
+
+    $exceptions = array();
+    foreach ($this->service->getAllHostsForRole('read') as $host) {
+      try {
+        $response = $this->executeRequest($host, $uri, $spec);
+        $phids = ipull($response['hits']['hits'], '_id');
+        return $phids;
+      } catch (Exception $e) {
+        // Catches HTTPFutureResponseStatus and other network/HTTP exceptions
+        // raised by executeRequest(). PHP Error subclasses (TypeError, etc.)
+        // are intentionally NOT caught -- they indicate programming bugs that
+        // should propagate immediately, not get aggregated into the per-host
+        // failover.
+        $exceptions[] = $e;
+      }
+    }
+    throw new PhutilAggregateException(
+      pht('All Fulltext Search hosts failed:'),
+      $exceptions);
   }
 
-  public function indexExists() {
-    throw new Exception(pht(
-      'indexExists() is not yet implemented; lands in Task E8.'));
+  private function buildSpec(PhabricatorSavedQuery $query, array $types) {
+    $q = new PhabricatorElasticsearchQueryBuilder();
+    $query_string = $query->getParameter('query');
+    if ($query_string !== null && $query_string !== '') {
+      $q->addMustClause(array(
+        'simple_query_string' => array(
+          'query'  => $query_string,
+          'fields' => array(
+            PhabricatorSearchDocumentFieldType::FIELD_TITLE.'.*',
+            PhabricatorSearchDocumentFieldType::FIELD_BODY.'.*',
+            PhabricatorSearchDocumentFieldType::FIELD_COMMENT.'.*',
+          ),
+          'default_operator' => 'AND',
+        ),
+      ));
+      $q->addShouldClause(array(
+        'simple_query_string' => array(
+          'query'  => $query_string,
+          'fields' => array(
+            '*.raw',
+            PhabricatorSearchDocumentFieldType::FIELD_TITLE.'^4',
+            PhabricatorSearchDocumentFieldType::FIELD_BODY.'^3',
+            PhabricatorSearchDocumentFieldType::FIELD_COMMENT.'^1.2',
+          ),
+          'analyzer'         => 'english_exact',
+          'default_operator' => 'and',
+        ),
+      ));
+    }
+
+    $exclude = $query->getParameter('exclude');
+    if ($exclude) {
+      // Correct from day one: bool.must_not, not the obsolete 'not' clause.
+      // Cast to array so a single PHID scalar and an already-array of PHIDs
+      // both produce a flat list for the Elasticsearch ids.values field.
+      $q->addMustNotClause(array(
+        'ids' => array(
+          'values' => array_values((array)$exclude),
+        ),
+      ));
+    }
+
+    $relationship_map = array(
+      PhabricatorSearchRelationship::RELATIONSHIP_AUTHOR =>
+        $query->getParameter('authorPHIDs', array()),
+      PhabricatorSearchRelationship::RELATIONSHIP_SUBSCRIBER =>
+        $query->getParameter('subscriberPHIDs', array()),
+      PhabricatorSearchRelationship::RELATIONSHIP_PROJECT =>
+        $query->getParameter('projectPHIDs', array()),
+      PhabricatorSearchRelationship::RELATIONSHIP_REPOSITORY =>
+        $query->getParameter('repositoryPHIDs', array()),
+    );
+
+    $statuses = $query->getParameter('statuses', array());
+    $statuses = array_fuse($statuses);
+    $rel_open    = PhabricatorSearchRelationship::RELATIONSHIP_OPEN;
+    $rel_closed  = PhabricatorSearchRelationship::RELATIONSHIP_CLOSED;
+    $rel_unowned = PhabricatorSearchRelationship::RELATIONSHIP_UNOWNED;
+    $include_open   = !empty($statuses[$rel_open]);
+    $include_closed = !empty($statuses[$rel_closed]);
+    if ($include_open && !$include_closed) {
+      $q->addExistsClause($rel_open);
+    } else if (!$include_open && $include_closed) {
+      $q->addExistsClause($rel_closed);
+    }
+
+    if ($query->getParameter('withUnowned')) {
+      $q->addExistsClause($rel_unowned);
+    }
+
+    $rel_owner = PhabricatorSearchRelationship::RELATIONSHIP_OWNER;
+    if ($query->getParameter('withAnyOwner')) {
+      $q->addExistsClause($rel_owner);
+    } else {
+      $owner_phids = $query->getParameter('ownerPHIDs', array());
+      if (count($owner_phids)) {
+        $q->addTermsClause($rel_owner, $owner_phids);
+      }
+    }
+
+    foreach ($relationship_map as $field => $phids) {
+      if (is_array($phids) && !empty($phids)) {
+        $q->addTermsClause($field, $phids);
+      }
+    }
+
+    // Body-level type filter (typeless API has no per-type URL segment).
+    $q->addFilterClause($this->buildTypeFilter($types));
+
+    if (!$q->getClauseCount('must')) {
+      $q->addMustClause(array('match_all' => array('boost' => 1)));
+    }
+
+    $spec = array(
+      '_source' => false,
+      'query'   => array(
+        'bool' => $q->toArray(),
+      ),
+    );
+
+    if (!$query->getParameter('query')) {
+      $spec['sort'] = array(
+        array('dateCreated' => 'desc'),
+      );
+    }
+
+    $offset = (int)$query->getParameter('offset', 0);
+    $limit  = (int)$query->getParameter('limit', 101);
+    if ($offset + $limit > 10000) {
+      throw new Exception(pht(
+        'Query offset is too large. offset+limit=%s (max=%s)',
+        $offset + $limit, 10000));
+    }
+    $spec['from'] = $offset;
+    $spec['size'] = $limit;
+
+    return $spec;
   }
 
-  public function getIndexStats() {
-    throw new Exception(pht(
-      'getIndexStats() is not yet implemented; lands in Task E8.'));
+  public function indexExists(?VyOSElasticModernHost $host = null) {
+    if (!$host) {
+      $host = $this->getHostForRead();
+    }
+    try {
+      $res = $this->executeRequest($host, '/_stats/', array());
+      return isset($res['indices'][$this->index]);
+    } catch (HTTPFutureHTTPResponseStatus $e) {
+      if ($e->getStatusCode() == 404) {
+        return false;
+      }
+      throw $e;
+    }
+  }
+
+  public function indexIsSane(?VyOSElasticModernHost $host = null) {
+    if (!$host) {
+      $host = $this->getHostForRead();
+    }
+    if (!$this->indexExists($host)) {
+      return false;
+    }
+    $cur_mapping  = $this->executeRequest($host, '/_mapping/', array());
+    $cur_settings = $this->executeRequest($host, '/_settings/', array());
+    $actual = array_merge(
+      $cur_settings[$this->index],
+      $cur_mapping[$this->index]);
+
+    return $this->check($actual, $this->getIndexConfiguration());
+  }
+
+  public function initIndex() {
+    $host = $this->getHostForWrite();
+    if ($this->indexExists($host)) {
+      $this->executeRequest($host, '/', array(), 'DELETE');
+    }
+    $data = $this->getIndexConfiguration();
+    $this->executeRequest($host, '/', $data, 'PUT');
+  }
+
+  public function getIndexStats(?VyOSElasticModernHost $host = null) {
+    if (!$host) {
+      $host = $this->getHostForRead();
+    }
+    $res = $this->executeRequest($host, '/_stats/', array());
+    if (!isset($res['indices'][$this->index])) {
+      throw new Exception(
+        pht(
+          'Index "%s" not found in Elasticsearch _stats response.',
+          $this->index));
+    }
+    $stats = $res['indices'][$this->index];
+    return array(
+      pht('Queries') =>
+        idxv($stats, array('primaries', 'search', 'query_total')),
+      pht('Documents') =>
+        idxv($stats, array('total', 'docs', 'count')),
+      pht('Deleted') =>
+        idxv($stats, array('total', 'docs', 'deleted')),
+      pht('Storage Used') =>
+        phutil_format_bytes(
+          idxv($stats, array('total', 'store', 'size_in_bytes'))),
+    );
+  }
+
+  private function getIndexConfiguration() {
+    $data = array();
+    $data['settings'] = array(
+      'index' => array(
+        'auto_expand_replicas' => '0-2',
+        'analysis' => array(
+          'filter' => array(
+            'english_stop' => array(
+              'type'      => 'stop',
+              'stopwords' => '_english_',
+            ),
+            'english_stemmer' => array(
+              'type'     => 'stemmer',
+              'language' => 'english',
+            ),
+            'english_possessive_stemmer' => array(
+              'type'     => 'stemmer',
+              'language' => 'possessive_english',
+            ),
+          ),
+          'analyzer' => array(
+            'english_exact' => array(
+              'tokenizer' => 'standard',
+              'filter'    => array('lowercase'),
+            ),
+            'letter_stop' => array(
+              'tokenizer' => 'letter',
+              'filter'    => array('lowercase', 'english_stop'),
+            ),
+            'english_stem' => array(
+              'tokenizer' => 'standard',
+              'filter'    => array(
+                'english_possessive_stemmer',
+                'lowercase',
+                'english_stop',
+                'english_stemmer',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    $fields = $this->getTypeConstants('PhabricatorSearchDocumentFieldType');
+    $relationships = $this->getTypeConstants('PhabricatorSearchRelationship');
+    $doc_types = array_keys(
+      PhabricatorSearchApplicationSearchEngine::getIndexableDocumentTypes());
+    $text_type = $this->getTextFieldType();
+
+    $data['mappings'] = $this->buildIndexMappings(
+      $doc_types, $fields, $relationships, $text_type);
+
+    return $data;
+  }
+
+  private function check($actual, $required, $path = '') {
+    foreach ($required as $key => $value) {
+      if (!array_key_exists($key, $actual)) {
+        return false;
+      }
+      if (is_array($value)) {
+        if (!is_array($actual[$key])) {
+          return false;
+        }
+        if (!$this->check($actual[$key], $value, $path.'.'.$key)) {
+          return false;
+        }
+        continue;
+      }
+      $actual[$key] = self::normalizeConfigValue($actual[$key]);
+      $value = self::normalizeConfigValue($value);
+      if ($actual[$key] != $value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static function normalizeConfigValue($value) {
+    if ($value === true) {
+      return 'true';
+    }
+    if ($value === false) {
+      return 'false';
+    }
+    return $value;
   }
 
 }
