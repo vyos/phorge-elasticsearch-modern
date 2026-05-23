@@ -51,6 +51,23 @@ abstract class VyOSElasticModernFulltextStorageEngine
   public function buildIndexMappings(
     array $doc_types, array $fields, array $relationships, $text_type) {
 
+    // These are emitted as fixed standard fields at the end of the mapping.
+    // Caller-supplied $fields or $relationships must not shadow them.
+    static $reserved = array('documentType', 'dateCreated', 'lastModified');
+
+    $all_caller_keys = array_merge(
+      $fields,
+      $relationships,
+      array_map(function($r) { return $r.'_ts'; }, $relationships));
+    $collisions = array_intersect($all_caller_keys, $reserved);
+    if ($collisions) {
+      throw new Exception(
+        pht(
+          'buildIndexMappings(): caller-supplied field(s) "%s" collide with '.
+          'reserved mapping keys.',
+          implode('", "', array_values($collisions))));
+    }
+
     $properties = array();
 
     foreach ($fields as $field) {
