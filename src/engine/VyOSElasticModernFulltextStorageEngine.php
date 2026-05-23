@@ -436,7 +436,7 @@ abstract class VyOSElasticModernFulltextStorageEngine
     try {
       $res = $this->executeRequest($host, '/_stats/', array());
       return isset($res['indices'][$this->index]);
-    } catch (HTTPFutureHTTPResponseStatus $e) {
+    } catch (HTTPFutureResponseStatus $e) {
       if ($e->getStatusCode() == 404) {
         return false;
       }
