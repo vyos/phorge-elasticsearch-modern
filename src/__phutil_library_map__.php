@@ -8,7 +8,15 @@
  */
 phutil_register_library_map(array(
   '__library_version__' => 2,
-  'class' => array(),
+  'class' => array(
+    'VyOSElasticModernFulltextStorageEngine' => 'engine/VyOSElasticModernFulltextStorageEngine.php',
+    'VyOSElasticModernHost' => 'host/VyOSElasticModernHost.php',
+    'VyOSElasticModernHostTestCase' => '__tests__/VyOSElasticModernHostTestCase.php',
+  ),
   'function' => array(),
-  'xmap' => array(),
+  'xmap' => array(
+    'VyOSElasticModernFulltextStorageEngine' => 'PhabricatorFulltextStorageEngine',
+    'VyOSElasticModernHost' => 'PhabricatorSearchHost',
+    'VyOSElasticModernHostTestCase' => 'PhutilTestCase',
+  ),
 ));
