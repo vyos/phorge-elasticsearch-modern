@@ -7,6 +7,31 @@
 abstract class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
+  private $version = null;
+
+  public function setVersion($version) {
+    $version = (int)$version;
+    if ($version < 7) {
+      throw new Exception(
+        pht(
+          'Unsupported Elasticsearch version "%d" for the '.
+          '"elasticsearch-modern" engine. This engine supports version 7 '.
+          'and above (Elasticsearch 7.x, 8.x, or OpenSearch 1.x/2.x/3.x). '.
+          'For ES 5.x, use the bundled "elasticsearch" engine instead.',
+          $version));
+    }
+    $this->version = $version;
+    return $this;
+  }
+
+  public function getVersion() {
+    if ($this->version === null) {
+      throw new Exception(
+        pht('Version not configured; call setVersion() or setService() first.'));
+    }
+    return $this->version;
+  }
+
   public function getEngineIdentifier() {
     return 'elasticsearch-modern';
   }
