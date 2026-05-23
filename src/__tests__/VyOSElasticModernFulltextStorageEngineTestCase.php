@@ -67,16 +67,14 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
   }
 
   public function testGetDocumentUri() {
-    $engine = id(new VyOSElasticModernFulltextStorageEngine())
-      ->setVersion(7);
+    $engine = $this->newEngine()->setVersion(7);
     $uri = $engine->getDocumentUri('TASK', 'PHID-TASK-abc');
     $this->assertEqual('/_doc/PHID-TASK-abc', $uri);
   }
 
   public function testGetDocumentUriIgnoresType() {
     // The typeless API does not encode the doc type in the URL.
-    $engine = id(new VyOSElasticModernFulltextStorageEngine())
-      ->setVersion(7);
+    $engine = $this->newEngine()->setVersion(7);
     $uri_a = $engine->getDocumentUri('TASK', 'PHID-TASK-abc');
     $uri_b = $engine->getDocumentUri('DREV', 'PHID-TASK-abc');
     $this->assertEqual($uri_a, $uri_b);
