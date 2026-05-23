@@ -11,6 +11,7 @@ phutil_register_library_map(array(
   'class' => array(
     'VyOSElasticModernFulltextStorageEngine' => 'engine/VyOSElasticModernFulltextStorageEngine.php',
     'VyOSElasticModernFulltextStorageEngineTestCase' => '__tests__/VyOSElasticModernFulltextStorageEngineTestCase.php',
+    'VyOSElasticModernFulltextStorageEngineTestDouble' => '__tests__/VyOSElasticModernFulltextStorageEngineTestCase.php',
     'VyOSElasticModernHost' => 'host/VyOSElasticModernHost.php',
     'VyOSElasticModernHostTestCase' => '__tests__/VyOSElasticModernHostTestCase.php',
   ),
@@ -18,6 +19,7 @@ phutil_register_library_map(array(
   'xmap' => array(
     'VyOSElasticModernFulltextStorageEngine' => 'PhabricatorFulltextStorageEngine',
     'VyOSElasticModernFulltextStorageEngineTestCase' => 'PhutilTestCase',
+    'VyOSElasticModernFulltextStorageEngineTestDouble' => 'VyOSElasticModernFulltextStorageEngine',
     'VyOSElasticModernHost' => 'PhabricatorSearchHost',
     'VyOSElasticModernHostTestCase' => 'PhutilTestCase',
   ),

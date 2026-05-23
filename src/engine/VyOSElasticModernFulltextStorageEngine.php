@@ -7,7 +7,7 @@
 abstract class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
-  private $version;
+  private $version = null;
 
   public function setVersion($version) {
     $version = (int)$version;
@@ -25,6 +25,10 @@ abstract class VyOSElasticModernFulltextStorageEngine
   }
 
   public function getVersion() {
+    if ($this->version === null) {
+      throw new Exception(
+        pht('Version not configured; call setVersion() or setService() first.'));
+    }
     return $this->version;
   }
 
