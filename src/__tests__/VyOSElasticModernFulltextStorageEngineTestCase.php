@@ -80,4 +80,13 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
     $this->assertEqual($uri_a, $uri_b);
   }
 
+  public function testGetSearchUri() {
+    $engine = $this->newEngine()->setVersion(7);
+    $this->assertEqual(
+      '/_search',
+      $engine->getSearchUri(array('TASK', 'DREV')));
+    $this->assertEqual('/_search', $engine->getSearchUri(array('USER')));
+    $this->assertEqual('/_search', $engine->getSearchUri(array()));
+  }
+
 }
