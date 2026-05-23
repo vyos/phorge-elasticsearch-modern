@@ -82,7 +82,9 @@ Phorge writes search updates to **every writable service** in `cluster.search`. 
 6. Run `./bin/search index --all`. Both clusters fill from MySQL; ongoing writes fan out to both.
 7. Flip the new entry to `roles: {"read": true, "write": true}` once you're satisfied it's healthy.
 8. Drop the ES 5 entry's read role: `roles: {"read": false, "write": true}`. Reads go exclusively to the new cluster; writes still mirror to both as insurance.
-9. **Rollback at any stage:** flip the new entry's roles back to `{"read": false, "write": false}` to take it out of the write fan-out.
+9. **Rollback:**
+   - *Before step 8* (ES 5 still has `"read": true`): flip the new entry to `{"read": false, "write": false}` or remove it entirely. ES 5 resumes serving all reads.
+   - *After step 8* (ES 5 has `"read": false`): restore ES 5's read role to `true` **first** (or simultaneously), then flip the new entry to `{"read": false, "write": false}`. Doing it in the reverse order briefly leaves no read-capable host and search will return errors for in-flight requests.
 10. After a soak period (1–2 weeks suggested), remove the ES 5 entry entirely and decommission that cluster.
 
 ## Limitations
