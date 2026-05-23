@@ -17,11 +17,11 @@ final class VyOSElasticModernFulltextStorageEngineTestDouble
     return array();
   }
 
-  public function indexExists() {
+  public function indexExists(?VyOSElasticModernHost $host = null) {
     return false;
   }
 
-  public function getIndexStats() {
+  public function getIndexStats(?VyOSElasticModernHost $host = null) {
     return array();
   }
 

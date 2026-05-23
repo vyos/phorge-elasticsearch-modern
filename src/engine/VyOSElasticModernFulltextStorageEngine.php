@@ -410,7 +410,8 @@ abstract class VyOSElasticModernFulltextStorageEngine
       ),
     );
 
-    if (!$query->getParameter('query')) {
+    $sort_query_string = $query->getParameter('query');
+    if ($sort_query_string === null || $sort_query_string === '') {
       $spec['sort'] = array(
         array('dateCreated' => 'desc'),
       );
