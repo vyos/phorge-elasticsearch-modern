@@ -32,6 +32,10 @@ abstract class VyOSElasticModernFulltextStorageEngine
     return $this->version;
   }
 
+  public function getDocumentUri($type, $phid) {
+    return '/_doc/'.$phid;
+  }
+
   public function getEngineIdentifier() {
     return 'elasticsearch-modern';
   }
