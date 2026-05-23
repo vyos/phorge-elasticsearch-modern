@@ -227,7 +227,11 @@ class VyOSElasticModernFulltextStorageEngine
         $spec[$field_name][] = $related_phid;
       }
       if ($time !== null) {
-        $spec[$field_name.'_ts'] = $time;
+        if (!isset($spec[$field_name.'_ts'])) {
+          $spec[$field_name.'_ts'] = array($time);
+        } else {
+          $spec[$field_name.'_ts'][] = $time;
+        }
       }
     }
 
@@ -420,6 +424,11 @@ class VyOSElasticModernFulltextStorageEngine
 
     $offset = (int)$query->getParameter('offset', 0);
     $limit  = (int)$query->getParameter('limit', 101);
+    if ($offset < 0 || $limit < 0) {
+      throw new Exception(pht(
+        'Query offset and limit must be non-negative. offset=%d limit=%d',
+        $offset, $limit));
+    }
     if ($offset + $limit > 10000) {
       throw new Exception(pht(
         'Query offset is too large. offset+limit=%s (max=%s)',
