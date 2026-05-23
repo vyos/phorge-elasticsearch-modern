@@ -236,4 +236,25 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
     $this->assertEqual('date', $mappings['properties']['lastModified']['type']);
   }
 
+  public function testEngineIdentifier() {
+    $engine = $this->newEngine();
+    $this->assertEqual('elasticsearch-modern', $engine->getEngineIdentifier());
+  }
+
+  public function testHostType() {
+    $engine = $this->newEngine();
+    $host = $engine->getHostType();
+    $this->assertTrue($host instanceof VyOSElasticModernHost);
+  }
+
+  public function testGetTextFieldType() {
+    $engine = $this->newEngine()->setVersion(7);
+    $this->assertEqual('text', $engine->getTextFieldType());
+  }
+
+  public function testGetTimestampField() {
+    $engine = $this->newEngine()->setVersion(7);
+    $this->assertEqual('lastModified', $engine->getTimestampField());
+  }
+
 }

@@ -8,6 +8,46 @@ abstract class VyOSElasticModernFulltextStorageEngine
   extends PhabricatorFulltextStorageEngine {
 
   private $version = null;
+  private $index;
+
+  public function setService(PhabricatorSearchService $service) {
+    $this->service = $service;  // inherited protected property
+    $config = $service->getConfig();
+    $index = idx($config, 'path', '/phabricator');
+    $normalized = trim($index, '/');
+    if ($normalized === '') {
+      throw new Exception(
+        pht(
+          'Invalid index path "%s" in cluster.search config: '.
+          'path must contain at least one non-slash character.',
+          $index));
+    }
+    $this->index = $normalized;
+    $this->setVersion(idx($config, 'version', 7));
+    return $this;
+  }
+
+  public function getTimestampField() {
+    return 'lastModified';
+  }
+
+  public function getTextFieldType() {
+    return 'text';
+  }
+
+  public function getHostForRead() {
+    return $this->getService()->getAnyHostForRole('read');
+  }
+
+  public function getHostForWrite() {
+    return $this->getService()->getAnyHostForRole('write');
+  }
+
+  public function getTypeConstants($class) {
+    $relationship_class = new ReflectionClass($class);
+    $typeconstants = $relationship_class->getConstants();
+    return array_unique(array_values($typeconstants));
+  }
 
   public function setVersion($version) {
     $version = (int)$version;
