@@ -40,6 +40,14 @@ abstract class VyOSElasticModernFulltextStorageEngine
     return '/_search';
   }
 
+  public function buildTypeFilter(array $types) {
+    return array(
+      'terms' => array(
+        'documentType' => array_values($types),
+      ),
+    );
+  }
+
   public function getEngineIdentifier() {
     return 'elasticsearch-modern';
   }
