@@ -261,16 +261,18 @@ abstract class VyOSElasticModernFulltextStorageEngine
       throw $ex;
     }
 
+    // HTTP request succeeded — mark the host as healthy regardless of whether
+    // the response body is valid JSON. JSON parse failure is an application
+    // error, not a host-connectivity failure.
+    $host->didHealthCheck(true);
+
     if ($method !== 'GET') {
       return null;
     }
 
     try {
-      $decoded = phutil_json_decode($body);
-      $host->didHealthCheck(true);
-      return $decoded;
+      return phutil_json_decode($body);
     } catch (PhutilJSONParserException $ex) {
-      $host->didHealthCheck(false);
       throw new Exception(
         pht('Elasticsearch server returned invalid JSON.'),
         0,
