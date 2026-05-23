@@ -225,7 +225,7 @@ abstract class VyOSElasticModernFulltextStorageEngine
       } else {
         $spec[$field_name][] = $related_phid;
       }
-      if ($time) {
+      if ($time !== null) {
         $spec[$field_name.'_ts'] = $time;
       }
     }

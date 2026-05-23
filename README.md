@@ -50,7 +50,7 @@ v0.1.0 — initial release. No auth support yet (deferred to v0.2). See the [Lim
            }
          ],
          "version": 7,
-         "path": "/phabricator"
+         "path": "phabricator/"
        }
      ]
    }
