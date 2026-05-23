@@ -313,7 +313,7 @@ abstract class VyOSElasticModernFulltextStorageEngine
   private function buildSpec(PhabricatorSavedQuery $query, array $types) {
     $q = new PhabricatorElasticsearchQueryBuilder();
     $query_string = $query->getParameter('query');
-    if (strlen($query_string)) {
+    if ($query_string !== null && $query_string !== '') {
       $q->addMustClause(array(
         'simple_query_string' => array(
           'query'  => $query_string,
@@ -343,9 +343,11 @@ abstract class VyOSElasticModernFulltextStorageEngine
     $exclude = $query->getParameter('exclude');
     if ($exclude) {
       // Correct from day one: bool.must_not, not the obsolete 'not' clause.
+      // Cast to array so a single PHID scalar and an already-array of PHIDs
+      // both produce a flat list for the Elasticsearch ids.values field.
       $q->addMustNotClause(array(
         'ids' => array(
-          'values' => array($exclude),
+          'values' => array_values((array)$exclude),
         ),
       ));
     }
@@ -460,7 +462,7 @@ abstract class VyOSElasticModernFulltextStorageEngine
 
   public function initIndex() {
     $host = $this->getHostForWrite();
-    if ($this->indexExists()) {
+    if ($this->indexExists($host)) {
       $this->executeRequest($host, '/', array(), 'DELETE');
     }
     $data = $this->getIndexConfiguration();
@@ -472,6 +474,12 @@ abstract class VyOSElasticModernFulltextStorageEngine
       $host = $this->getHostForRead();
     }
     $res = $this->executeRequest($host, '/_stats/', array());
+    if (!isset($res['indices'][$this->index])) {
+      throw new Exception(
+        pht(
+          'Index "%s" not found in Elasticsearch _stats response.',
+          $this->index));
+    }
     $stats = $res['indices'][$this->index];
     return array(
       pht('Queries') =>

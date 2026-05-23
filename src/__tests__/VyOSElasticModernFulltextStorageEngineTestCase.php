@@ -257,4 +257,24 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
     $this->assertEqual('lastModified', $engine->getTimestampField());
   }
 
+  public function testBuildSpecTreatsZeroQueryAsSearchTerm() {
+    // '0' is falsy in PHP but must be treated as a non-empty search term.
+    // strlen('0') == 1, so the query clause should be present and the
+    // default date-sorted path should NOT fire.
+    $engine = $this->newEngine()->setVersion(7);
+    $query = id(new PhabricatorSavedQuery())
+      ->setParameter('query', '0');
+
+    $method = new ReflectionMethod($engine, 'buildSpec');
+    $method->setAccessible(true);
+    $spec = $method->invoke($engine, $query, array('TASK'));
+
+    $this->assertFalse(isset($spec['sort']));
+    $this->assertEqual(
+      '0',
+      idxv(
+        $spec,
+        array('query', 'bool', 'must', 0, 'simple_query_string', 'query')));
+  }
+
 }
