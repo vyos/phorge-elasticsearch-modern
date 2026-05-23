@@ -180,4 +180,60 @@ final class VyOSElasticModernFulltextStorageEngineTestCase
       $mappings['properties']['lastModified']['type']);
   }
 
+  public function testBuildIndexMappingsRejectsReservedFieldName() {
+    $engine = $this->newEngine()->setVersion(7);
+    $caught = null;
+    try {
+      $engine->buildIndexMappings(
+        array(), array('documentType'), array(), 'text');
+    } catch (Exception $e) {
+      $caught = $e;
+    }
+    $this->assertTrue(
+      $caught !== null,
+      pht('Expected exception when field name collides with reserved key.'));
+  }
+
+  public function testBuildIndexMappingsRejectsReservedRelationshipName() {
+    $engine = $this->newEngine()->setVersion(7);
+    $caught = null;
+    try {
+      $engine->buildIndexMappings(
+        array(), array(), array('lastModified'), 'text');
+    } catch (Exception $e) {
+      $caught = $e;
+    }
+    $this->assertTrue(
+      $caught !== null,
+      pht('Expected exception when relationship name collides with reserved key.'));
+  }
+
+  public function testBuildIndexMappingsRejectsFooTsClash() {
+    // A field named "foo_ts" would clash with the timestamp slot auto-generated
+    // for a relationship named "foo".
+    $engine = $this->newEngine()->setVersion(7);
+    $caught = null;
+    try {
+      $engine->buildIndexMappings(
+        array(), array('foo_ts'), array('foo'), 'text');
+    } catch (Exception $e) {
+      $caught = $e;
+    }
+    $this->assertTrue(
+      $caught !== null,
+      pht('Expected exception for field/relationship timestamp-slot collision.'));
+  }
+
+  public function testBuildIndexMappingsEmptyInputsYieldStandardFields() {
+    $engine = $this->newEngine()->setVersion(7);
+    $mappings = $engine->buildIndexMappings(array(), array(), array(), 'text');
+    $this->assertTrue(isset($mappings['properties']['documentType']));
+    $this->assertTrue(isset($mappings['properties']['dateCreated']));
+    $this->assertTrue(isset($mappings['properties']['lastModified']));
+    $this->assertEqual(
+      'keyword', $mappings['properties']['documentType']['type']);
+    $this->assertEqual('date', $mappings['properties']['dateCreated']['type']);
+    $this->assertEqual('date', $mappings['properties']['lastModified']['type']);
+  }
+
 }

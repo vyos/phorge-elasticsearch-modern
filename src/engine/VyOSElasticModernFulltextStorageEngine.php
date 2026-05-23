@@ -55,10 +55,10 @@ abstract class VyOSElasticModernFulltextStorageEngine
     // Caller-supplied $fields or $relationships must not shadow them.
     static $reserved = array('documentType', 'dateCreated', 'lastModified');
 
-    $all_caller_keys = array_merge(
-      $fields,
-      $relationships,
-      array_map(function($r) { return $r.'_ts'; }, $relationships));
+    $rel_ts_keys = array_map(function($r) { return $r.'_ts'; }, $relationships);
+    $all_caller_keys = array_merge($fields, $relationships, $rel_ts_keys);
+
+    // Check for caller-supplied names that shadow reserved fields.
     $collisions = array_intersect($all_caller_keys, $reserved);
     if ($collisions) {
       throw new Exception(
@@ -66,6 +66,19 @@ abstract class VyOSElasticModernFulltextStorageEngine
           'buildIndexMappings(): caller-supplied field(s) "%s" collide with '.
           'reserved mapping keys.',
           implode('", "', array_values($collisions))));
+    }
+
+    // Check for duplicates within caller-supplied keys themselves
+    // (e.g. a field named "foo_ts" that would clash with relationship "foo"'s
+    // implicit timestamp slot).
+    $counts = array_count_values($all_caller_keys);
+    $duplicates = array_keys(array_filter($counts, function($c) { return $c > 1; }));
+    if ($duplicates) {
+      throw new Exception(
+        pht(
+          'buildIndexMappings(): caller-supplied key(s) "%s" appear more '.
+          'than once (check for field/relationship/timestamp-slot collisions).',
+          implode('", "', $duplicates)));
     }
 
     $properties = array();
