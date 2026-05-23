@@ -82,8 +82,12 @@ final class VyOSElasticModernHost extends PhabricatorSearchHost {
   }
 
   public function getConnectionStatus() {
-    $status = $this->getEngine()->indexIsSane($this);
-    return $status ? parent::STATUS_OKAY : parent::STATUS_FAIL;
+    try {
+      $status = $this->getEngine()->indexIsSane($this);
+      return $status ? parent::STATUS_OKAY : parent::STATUS_FAIL;
+    } catch (Exception $e) {
+      return parent::STATUS_FAIL;
+    }
   }
 
 }
